@@ -1040,6 +1040,7 @@ p  { font-size: 1rem; color: var(--color-white-80); }
 /* ── Tablet: ≤1024px ── */
 @media (max-width: 1024px) {
   .primary-nav { display: none; }  /* Show only on desktop */
+  .header-auth-btns { display: none; }
 
   .recipe-body {
     grid-template-columns: 1fr;    /* Stack to single column */
@@ -1062,8 +1063,8 @@ p  { font-size: 1rem; color: var(--color-white-80); }
   /* Show mobile hamburger button */
   .mobile-menu-btn { display: flex; margin-left: auto; }
 
-  /* Search input shrinks */
-  .search-input { width: 130px; }
+  /* Search input shrinks or hides entirely to put in the overlay */
+  .header-search { display: none; }
 
   /* Hero adjustments */
   .hero { height: clamp(400px, 55vh, 580px); }
@@ -1086,8 +1087,6 @@ p  { font-size: 1rem; color: var(--color-white-80); }
     grid-template-columns: 1fr;  /* Single column on small phones */
   }
 
-  .header-search { display: none; }  /* Move search to mobile menu */
-
   .hero-title { font-size: 1.8rem; }
 
   .section-header { flex-direction: column; align-items: flex-start; }
@@ -1096,28 +1095,68 @@ p  { font-size: 1rem; color: var(--color-white-80); }
 }
 
 /* ── Mobile nav overlay (toggled via JS) ── */
-.mobile-nav-open .primary-nav {
-  display: flex;
+/* When open, we expand the site header to full screen and reflow the items */
+.mobile-nav-open { overflow: hidden; /* disable scroll on body */ }
+
+.mobile-nav-open .site-header {
   position: fixed;
-  top: var(--header-height);
-  left: 0;
-  right: 0;
   bottom: 0;
+  height: 100vh;
   background: var(--color-black);
-  z-index: 99;
-  padding: var(--space-lg) var(--space-md);
   overflow-y: auto;
+  border-bottom: none;
 }
-.mobile-nav-open .primary-nav ul {
-  flex-direction: column;
-  gap: var(--space-xs);
-  width: 100%;
+
+.mobile-nav-open .header-inner {
+  height: auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  align-content: flex-start;
+  padding-top: calc((var(--header-height) - 30px) / 2); /* aesthetic padding */
+  gap: 0;
+}
+
+/* Logo and hamburger stay top left/right */
+.mobile-nav-open .logo { flex: 1 1 auto; margin-bottom: var(--space-lg); }
+.mobile-nav-open .mobile-menu-btn { flex: 0 0 auto; margin-bottom: var(--space-lg); }
+
+/* Bring back the nav, search, auth buttons */
+.mobile-nav-open .primary-nav,
+.mobile-nav-open .header-search,
+.mobile-nav-open .header-auth-btns {
+  display: flex;
+  flex: 0 0 100%; /* Force full width on new row */
+  margin-left: 0;
+  margin-bottom: var(--space-md);
+}
+
+.mobile-nav-open .primary-nav ul { 
+  flex-direction: column; 
+  width: 100%; 
+  gap: var(--space-xs); 
 }
 .mobile-nav-open .nav-link {
   padding: var(--space-sm);
   font-size: 1.2rem;
   display: block;
   border-bottom: var(--border);
+}
+
+.mobile-nav-open .header-search .search-input { width: 100%; }
+
+.mobile-nav-open .header-auth-btns {
+  flex-direction: column;
+  padding-top: var(--space-md);
+  border-top: var(--border);
+  gap: var(--space-sm);
+}
+.mobile-nav-open .header-auth-btns .btn,
+.mobile-nav-open .header-auth-btns .nav-link {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+  font-size: 1.1rem;
+  padding: 0.8rem 1rem;
 }
 
 

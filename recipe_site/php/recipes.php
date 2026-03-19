@@ -370,3 +370,38 @@ function createRecipe(PDO $pdo, array $data): int
 
     return (int) $pdo->lastInsertId();
 }
+
+// ════════════════════════════════════════════════════════════
+// FUNCTION: deleteRecipe
+// Deletes a recipe, but ONLY if the author_id matches the
+// provided user_id. Also unlinks the image if it is stored
+// locally in uploads/recipes/.
+// Returns true on success, false if the recipe doesn't exist
+// or does not belong to the user.
+// ════════════════════════════════════════════════════════════
+function deleteRecipe(PDO $pdo, int $recipeId, int $userId): bool
+{
+    // First, verify ownership and get the image URL so we can delete the file
+    $stmt = $pdo->prepare("SELECT id, image_url FROM recipes WHERE id = :rid AND author_id = :uid LIMIT 1");
+    $stmt->execute([':rid' => $recipeId, ':uid' => $userId]);
+    $recipe = $stmt->fetch();
+
+    if (!$recipe) {
+        return false; // Recipe not found or user is not the author
+    }
+
+    // Delete the database record (ON DELETE CASCADE handles favourites/tags if set up)
+    $delStmt = $pdo->prepare("DELETE FROM recipes WHERE id = :id");
+    $success = $delStmt->execute([':id' => $recipe['id']]);
+
+    // If successful, delete the local image file (if it exists)
+    if ($success && !empty($recipe['image_url'])) {
+        $imgPath = __DIR__ . '/../' . ltrim($recipe['image_url'], '/');
+        // Only delete if it's actually in our uploads folder
+        if (strpos($recipe['image_url'], 'uploads/recipes/') !== false && file_exists($imgPath)) {
+            unlink($imgPath);
+        }
+    }
+
+    return $success;
+}

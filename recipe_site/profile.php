@@ -71,6 +71,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+// ── Handle delete-recipe action ───────────────────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_recipe') {
+    $recipeIdToDelete = (int) ($_POST['recipe_id'] ?? 0);
+    if ($recipeIdToDelete > 0) {
+        if (deleteRecipe($pdo, $recipeIdToDelete, (int)$user['id'])) {
+            $formSuccess = 'Recipe deleted successfully.';
+        } else {
+            $formError = 'Failed to delete recipe. It may not exist or you do not have permission.';
+        }
+    }
+}
+
 // ── Fetch data for active tab ─────────────────────────────────
 $activeTab     = $_GET['tab'] ?? 'my-recipes';
 $categories    = getCategories($pdo);
@@ -219,12 +231,21 @@ $myFavourites  = getUserFavorites($pdo, $user['id']);
                   <span class="meta-item">⏱ <?= (int)$recipe['prep_time'] + (int)$recipe['cook_time'] ?> min</span>
                   <span class="meta-item">🍽️ Serves <?= (int)$recipe['servings'] ?></span>
                 </div>
-                <a href="recipe.php?slug=<?= htmlspecialchars($recipe['slug']) ?>" class="card-cta">
-                  View Recipe
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                  </svg>
-                </a>
+                <div class="card-actions">
+                  <a href="recipe.php?slug=<?= htmlspecialchars($recipe['slug']) ?>" class="card-cta">
+                    View Recipe
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                      <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                    </svg>
+                  </a>
+                  <form method="POST" action="profile.php?tab=my-recipes" onsubmit="return confirm('WARNING: Are you sure you want to delete this recipe? This cannot be undone.');" style="display:inline-block;">
+                    <input type="hidden" name="action" value="delete_recipe">
+                    <input type="hidden" name="recipe_id" value="<?= (int)$recipe['id'] ?>">
+                    <button type="submit" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.8rem; background: rgba(239,68,68,0.2); border: 1px solid #ef4444; color: #fca5a5;" title="Delete Recipe">
+                      🗑️ Delete
+                    </button>
+                  </form>
+                </div>
               </div>
             </article>
           <?php endforeach; ?>
