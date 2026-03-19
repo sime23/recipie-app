@@ -156,7 +156,7 @@ function searchRecipes(PDO $pdo, string $term, int $limit = 20): array
             r.id, r.title, r.slug, r.description,
             r.image_url, r.prep_time, r.cook_time, r.difficulty,
             r.average_rating, r.rating_count,
-            c.name AS category_name, c.icon AS category_icon
+            c.name AS category_name, c.slug AS category_slug, c.icon AS category_icon
         FROM   recipes r
         LEFT JOIN categories c ON c.id = r.category_id
         WHERE  r.title       LIKE :term

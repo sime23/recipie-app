@@ -7,7 +7,12 @@
  * ─────────────────────────────────────────────────────────────
  */
 
+require_once __DIR__ . '/php/auth.php';
 require_once __DIR__ . '/php/recipes.php';
+
+startSession();
+$loggedIn = isLoggedIn();
+$currentUser = $loggedIn ? getCurrentUser() : null;
 
 // ── Sanitise the search term ──────────────────────────────────
 // htmlspecialchars prevents XSS when we reflect the query back in the UI.
@@ -52,6 +57,15 @@ $count      = count($results);
         <?php endforeach; ?>
       </ul>
     </nav>
+    <div class="header-auth-btns" style="margin-right: 1rem; display: flex; align-items: center; gap: 1rem;">
+      <?php if ($loggedIn): ?>
+        <a href="profile.php" class="btn btn-outline nav-profile-btn">👤 <?= htmlspecialchars($currentUser['username']) ?></a>
+        <a href="php/auth.php?logout=1" class="nav-link logout-link">Logout</a>
+      <?php else: ?>
+        <a href="login.php"    class="btn btn-primary">Login</a>
+        <a href="register.php" class="nav-link">Register</a>
+      <?php endif; ?>
+    </div>
     <form class="header-search" action="search_results.php" method="GET" role="search">
       <input type="search" name="q"
              value="<?= $searchTerm ?>"
@@ -118,11 +132,25 @@ $count      = count($results);
               <?= htmlspecialchars(mb_substr($recipe['description'], 0, 90)) ?>…
             </p>
             <div class="card-meta">
+              <span class="meta-item" style="color:var(--color-orange); font-weight:600;">
+                ⭐ <?= $recipe['average_rating'] > 0 ? htmlspecialchars((float)$recipe['average_rating']) . ' (' . (int)$recipe['rating_count'] . ')' : '<span style="color:var(--color-white-50); font-weight:400; font-size:0.85em;">No ratings</span>' ?>
+              </span>
               <span class="meta-item">⏱ <?= (int)$recipe['prep_time'] + (int)$recipe['cook_time'] ?> min</span>
             </div>
-            <a href="recipe.php?slug=<?= htmlspecialchars($recipe['slug']) ?>" class="card-cta">
-              View Recipe →
-            </a>
+            <div class="card-actions">
+              <a href="recipe.php?slug=<?= htmlspecialchars($recipe['slug']) ?>" class="card-cta">
+                View Recipe →
+              </a>
+              <?php if ($loggedIn): ?>
+                <?php $faved = isFavorited($pdo, $currentUser['id'], (int)$recipe['id']); ?>
+                <button class="fav-btn <?= $faved ? 'fav-btn--active' : '' ?>"
+                        data-recipe-id="<?= (int)$recipe['id'] ?>"
+                        onclick="toggleFav(this)"
+                        aria-label="<?= $faved ? 'Remove from favourites' : 'Add to favourites' ?>">
+                  <?= $faved ? '❤️' : '🤍' ?>
+                </button>
+              <?php endif; ?>
+            </div>
           </div>
         </article>
       <?php endforeach; ?>
