@@ -115,6 +115,9 @@ $recipes = getRecipesByCategory($pdo, $slug, 24);
             </h3>
             <p class="card-desc"><?= htmlspecialchars(mb_substr($recipe['description'], 0, 90)) ?>…</p>
             <div class="card-meta">
+              <span class="meta-item" style="color:var(--color-orange); font-weight:600;">
+                ⭐ <?= $recipe['average_rating'] > 0 ? htmlspecialchars((float)$recipe['average_rating']) . ' (' . (int)$recipe['rating_count'] . ')' : '<span style="color:var(--color-white-50); font-weight:400; font-size:0.85em;">No ratings</span>' ?>
+              </span>
               <span class="meta-item">⏱ <?= (int)$recipe['prep_time'] + (int)$recipe['cook_time'] ?> min</span>
               <span class="meta-item">Serves <?= (int)$recipe['servings'] ?></span>
             </div>

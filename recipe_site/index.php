@@ -268,6 +268,9 @@ $totalPages   = (int) ceil($totalRecipes / $perPage);
 
               <!-- Time meta row -->
               <div class="card-meta">
+                <span class="meta-item" style="color:var(--color-orange); font-weight:600;">
+                  ⭐ <?= $recipe['average_rating'] > 0 ? htmlspecialchars((float)$recipe['average_rating']) . ' (' . (int)$recipe['rating_count'] . ')' : '<span style="color:var(--color-white-50); font-weight:400; font-size:0.85em;">No ratings</span>' ?>
+                </span>
                 <span class="meta-item">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>

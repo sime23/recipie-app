@@ -535,3 +535,99 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+/* ════════════════════════════════════════════════════════════
+   11. RECIPE RATING WIDGET
+   Handles hovering, clicking, and AJAX posting of 0-5 ratings.
+   ════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  const ratingContainer = document.getElementById('recipeRating');
+  if (!ratingContainer) return;
+
+  const stars = ratingContainer.querySelectorAll('.star');
+  const statusEl = document.getElementById('ratingStatus');
+  const recipeId = ratingContainer.dataset.recipeId;
+  let currentRating = parseInt(ratingContainer.dataset.userRating) || 0;
+
+  // Update visual state of stars based on a rating value
+  const updateStars = (rating) => {
+    stars.forEach(star => {
+      const val = parseInt(star.dataset.val);
+      if (val <= rating) {
+        star.style.color = 'var(--color-orange)';
+      } else {
+        star.style.color = 'var(--color-white-20)';
+      }
+    });
+  };
+
+  // Hover effects
+  stars.forEach(star => {
+    star.addEventListener('mouseover', (e) => {
+      updateStars(parseInt(e.target.dataset.val));
+    });
+  });
+
+  ratingContainer.addEventListener('mouseout', () => {
+    updateStars(currentRating); // revert to saved state
+  });
+
+  // Click to rate
+  stars.forEach(star => {
+    star.addEventListener('click', (e) => {
+      const newRating = parseInt(e.target.dataset.val);
+      
+      // Prevent spamming
+      ratingContainer.style.pointerEvents = 'none';
+      if (statusEl) {
+        statusEl.textContent = 'Saving...';
+        statusEl.style.opacity = '1';
+      }
+
+      const formData = new FormData();
+      formData.append('recipe_id', recipeId);
+      formData.append('rating', newRating);
+
+      fetch('php/rate_action.php', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          currentRating = newRating;
+          ratingContainer.dataset.userRating = newRating;
+          updateStars(newRating);
+          
+          if (statusEl) {
+            statusEl.textContent = 'Your rating saved!';
+            statusEl.style.color = 'var(--color-green, #10b981)';
+          }
+
+          // Update the hero rating display visually
+          const heroRating = document.querySelector('.hero-rating');
+          if (heroRating) {
+            heroRating.innerHTML = `⭐ ${parseFloat(data.new_average).toFixed(1)} <span style="color:var(--color-white-50); font-weight:400; font-size:0.9em;">(updated)</span>`;
+          }
+        } else {
+          if (statusEl) {
+            statusEl.textContent = data.error || 'Failed to save.';
+            statusEl.style.color = 'var(--color-red, #ef4444)';
+          }
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (statusEl) {
+          statusEl.textContent = 'Network error.';
+          statusEl.style.color = 'var(--color-red, #ef4444)';
+        }
+      })
+      .finally(() => {
+        ratingContainer.style.pointerEvents = 'auto';
+        setTimeout(() => { if (statusEl) statusEl.style.opacity = '0'; }, 3000);
+      });
+    });
+  });
+});
+

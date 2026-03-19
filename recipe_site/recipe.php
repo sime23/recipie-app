@@ -144,6 +144,9 @@ $difficultyLabel = ['easy' => '🟢 Easy', 'medium' => '🟡 Medium', 'hard' => 
     <h1 class="recipe-hero-title">
       <?= htmlspecialchars($recipe['title']) ?>
     </h1>
+    <div class="hero-rating" style="margin-bottom: var(--space-md); font-size: 1.1rem; color: var(--color-orange); font-weight: 600;">
+      ⭐ <?= $recipe['average_rating'] > 0 ? htmlspecialchars((float)$recipe['average_rating']) . ' <span style="color:var(--color-white-50); font-weight:400; font-size:0.9em;">(' . (int)$recipe['rating_count'] . ' reviews)</span>' : '<span style="color:var(--color-white-50); font-weight:400;">No ratings yet</span>' ?>
+    </div>
     <?php if ($loggedIn): ?>
       <?php $faved = isFavorited($pdo, $currentUser['id'], (int)$recipe['id']); ?>
       <button class="fav-btn fav-btn--hero <?= $faved ? 'fav-btn--active' : '' ?>"
@@ -215,6 +218,22 @@ $difficultyLabel = ['easy' => '🟢 Easy', 'medium' => '🟡 Medium', 'hard' => 
      On mobile, stacks to single column.
      ═══════════════════════════════════════════════════════════ -->
 <main class="recipe-main container" id="main-content">
+
+  <!-- Interactive Rating Widget -->
+  <div class="interactive-rating-wrap" style="margin-bottom: var(--space-lg); padding: var(--space-md); background: var(--color-black-3); border-radius: var(--radius-sm); border: 1px solid var(--color-white-20); display: flex; align-items: center; gap: var(--space-md); flex-wrap: wrap;">
+    <strong style="color: var(--color-white); font-family: var(--font-sans);">Rate this recipe:</strong>
+    <?php $userRating = $loggedIn ? getUserRating($pdo, $currentUser['id'], (int)$recipe['id']) : 0; ?>
+    <div class="interactive-stars" id="recipeRating" data-recipe-id="<?= (int)$recipe['id'] ?>" data-user-rating="<?= $userRating ?>" style="display: flex; gap: 4px; font-size: 1.5rem; cursor: pointer;">
+      <?php for($i=1; $i<=5; $i++): ?>
+        <span class="star" data-val="<?= $i ?>" style="color: <?= $i <= $userRating ? 'var(--color-orange)' : 'var(--color-white-20)' ?>; transition: color 0.2s;">★</span>
+      <?php endfor; ?>
+    </div>
+    <?php if (!$loggedIn): ?>
+      <span class="rating-login-hint" style="font-size: 0.85rem; color: var(--color-white-50);"><a href="login.php" style="color: var(--color-orange); text-decoration: underline;">Log in</a> to rate</span>
+    <?php else: ?>
+      <span id="ratingStatus" style="font-size: 0.85rem; color: var(--color-white-50); transition: opacity 0.3s; opacity: 0;"><?= $userRating > 0 ? 'Your rating saved!' : 'Click a star to rate' ?></span>
+    <?php endif; ?>
+  </div>
 
   <!-- Description paragraph -->
   <p class="recipe-description">

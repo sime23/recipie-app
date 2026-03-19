@@ -44,6 +44,8 @@ function getRecipes(PDO $pdo, int $limit = 12, int $offset = 0): array
             r.difficulty,
             r.image_url,
             r.featured,
+            r.average_rating,
+            r.rating_count,
             r.created_at,
             c.name  AS category_name,
             c.slug  AS category_slug,
@@ -111,6 +113,7 @@ function getFeaturedRecipes(PDO $pdo, int $limit = 3): array
     $sql = "
         SELECT r.title, r.slug, r.description, r.image_url,
                r.prep_time, r.cook_time, r.difficulty,
+               r.average_rating, r.rating_count,
                c.name AS category_name, c.icon AS category_icon
         FROM   recipes r
         LEFT JOIN categories c ON c.id = r.category_id
@@ -152,13 +155,15 @@ function searchRecipes(PDO $pdo, string $term, int $limit = 20): array
         SELECT
             r.id, r.title, r.slug, r.description,
             r.image_url, r.prep_time, r.cook_time, r.difficulty,
+            r.average_rating, r.rating_count,
             c.name AS category_name, c.icon AS category_icon
         FROM   recipes r
         LEFT JOIN categories c ON c.id = r.category_id
         WHERE  r.title       LIKE :term
             OR r.description LIKE :term2
         ORDER BY
-            CASE WHEN r.title LIKE :term3 THEN 0 ELSE 1 END,  -- title matches first
+            CASE WHEN r.title LIKE :term3 THEN 0 ELSE 1 END,
+            r.average_rating DESC,
             r.created_at DESC
         LIMIT  :limit
     ";
@@ -210,11 +215,12 @@ function getRecipesByCategory(PDO $pdo, string $categorySlug, int $limit = 12): 
         SELECT
             r.id, r.title, r.slug, r.description,
             r.image_url, r.prep_time, r.cook_time, r.difficulty, r.servings,
+            r.average_rating, r.rating_count,
             c.name AS category_name, c.icon AS category_icon
         FROM   recipes    r
         INNER JOIN categories c ON c.id = r.category_id
         WHERE  c.slug = :slug
-        ORDER BY r.created_at DESC
+        ORDER BY r.average_rating DESC, r.created_at DESC
         LIMIT  :limit
     ";
 
@@ -247,6 +253,7 @@ function getUserRecipes(PDO $pdo, int $userId): array
         SELECT
             r.id, r.title, r.slug, r.description,
             r.image_url, r.prep_time, r.cook_time, r.difficulty, r.servings,
+            r.average_rating, r.rating_count,
             r.created_at,
             c.name AS category_name, c.slug AS category_slug, c.icon AS category_icon
         FROM   recipes r
@@ -269,6 +276,7 @@ function getUserFavorites(PDO $pdo, int $userId): array
         SELECT
             r.id, r.title, r.slug, r.description,
             r.image_url, r.prep_time, r.cook_time, r.difficulty, r.servings,
+            r.average_rating, r.rating_count,
             c.name AS category_name, c.slug AS category_slug, c.icon AS category_icon,
             uf.created_at AS favorited_at
         FROM   user_favorites uf
@@ -404,4 +412,55 @@ function deleteRecipe(PDO $pdo, int $recipeId, int $userId): bool
     }
 
     return $success;
+}
+
+// ════════════════════════════════════════════════════════════
+// FUNCTION: rateRecipe
+// Upserts a user's rating for a recipe, and updates the cached
+// average_rating and rating_count on the recipes table.
+// Returns the new average rating.
+// ════════════════════════════════════════════════════════════
+function rateRecipe(PDO $pdo, int $userId, int $recipeId, int $rating): float
+{
+    // 1. Insert or update the user's individual rating
+    $stmt = $pdo->prepare("
+        INSERT INTO user_ratings (user_id, recipe_id, rating)
+        VALUES (:uid, :rid, :rating)
+        ON DUPLICATE KEY UPDATE rating = VALUES(rating)
+    ");
+    $stmt->execute([':uid' => $userId, ':rid' => $recipeId, ':rating' => $rating]);
+
+    // 2. Recalculate the average rating and count for this recipe
+    $avgStmt = $pdo->prepare("
+        SELECT IFNULL(AVG(rating), 0) as avg_rating, COUNT(*) as r_count
+        FROM user_ratings
+        WHERE recipe_id = :rid
+    ");
+    $avgStmt->execute([':rid' => $recipeId]);
+    $stats = $avgStmt->fetch();
+
+    $newAvg = round((float)$stats['avg_rating'], 2);
+    $newCount = (int)$stats['r_count'];
+
+    // 3. Update the cached columns in the recipes table
+    $updStmt = $pdo->prepare("
+        UPDATE recipes
+        SET average_rating = :avg, rating_count = :cnt
+        WHERE id = :rid
+    ");
+    $updStmt->execute([':avg' => $newAvg, ':cnt' => $newCount, ':rid' => $recipeId]);
+
+    return $newAvg;
+}
+
+// ════════════════════════════════════════════════════════════
+// FUNCTION: getUserRating
+// Returns the 0-5 rating a user gave a recipe, or 0 if none.
+// ════════════════════════════════════════════════════════════
+function getUserRating(PDO $pdo, int $userId, int $recipeId): int
+{
+    $stmt = $pdo->prepare("SELECT rating FROM user_ratings WHERE user_id = :uid AND recipe_id = :rid LIMIT 1");
+    $stmt->execute([':uid' => $userId, ':rid' => $recipeId]);
+    $rating = $stmt->fetchColumn();
+    return $rating !== false ? (int)$rating : 0;
 }
