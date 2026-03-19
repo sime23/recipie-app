@@ -30,6 +30,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $formError = 'Please fill in all required fields.';
     } else {
         try {
+            // ── Handle image: uploaded file takes priority over URL ──
+            $imageUrl = trim($_POST['image_url'] ?? '');
+
+            if (!empty($_FILES['recipe_image']) && $_FILES['recipe_image']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = __DIR__ . '/uploads/recipes/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+                $ext     = strtolower(pathinfo($_FILES['recipe_image']['name'], PATHINFO_EXTENSION));
+                $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+                if (!in_array($ext, $allowed)) {
+                    throw new Exception('Only JPG, PNG, WebP, or GIF images are allowed.');
+                }
+                if ($_FILES['recipe_image']['size'] > 8 * 1024 * 1024) {
+                    throw new Exception('Image must be under 8 MB.');
+                }
+                $filename = 'recipe_' . uniqid('', true) . '.' . $ext;
+                move_uploaded_file($_FILES['recipe_image']['tmp_name'], $uploadDir . $filename);
+                $imageUrl = 'uploads/recipes/' . $filename;
+            }
+
             $newId = createRecipe($pdo, [
                 'category_id' => (int) $_POST['category_id'],
                 'author_id'   => $user['id'],
@@ -41,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
                 'cook_time'   => (int) ($_POST['cook_time']  ?? 0),
                 'servings'    => (int) ($_POST['servings']   ?? 4),
                 'difficulty'  => $_POST['difficulty']  ?? 'medium',
-                'image_url'   => trim($_POST['image_url'] ?? ''),
+                'image_url'   => $imageUrl,
             ]);
             $formSuccess = 'Recipe created successfully!';
         } catch (Exception $e) {
@@ -289,7 +310,7 @@ $myFavourites  = getUserFavorites($pdo, $user['id']);
       <button class="modal-close" onclick="closeCreateModal()" aria-label="Close">✕</button>
     </div>
 
-    <form class="create-recipe-form" method="POST" action="profile.php?tab=my-recipes">
+    <form class="create-recipe-form" method="POST" action="profile.php?tab=my-recipes" enctype="multipart/form-data">
       <input type="hidden" name="action" value="create_recipe">
 
       <div class="form-grid-2">
@@ -348,18 +369,67 @@ $myFavourites  = getUserFavorites($pdo, $user['id']);
         </div>
       </div>
 
-      <div class="form-grid-2">
-        <div class="form-group">
-          <label class="form-label" for="cr-difficulty">Difficulty</label>
-          <select id="cr-difficulty" name="difficulty" class="form-input form-select">
-            <option value="easy">🟢 Easy</option>
-            <option value="medium" selected>🟡 Medium</option>
-            <option value="hard">🔴 Hard</option>
-          </select>
+      <div class="form-group">
+        <label class="form-label">Difficulty</label>
+        <select id="cr-difficulty" name="difficulty" class="form-input form-select">
+          <option value="easy">🟢 Easy</option>
+          <option value="medium" selected>🟡 Medium</option>
+          <option value="hard">🔴 Hard</option>
+        </select>
+      </div>
+
+      <!-- ── Image Picker ──────────────────────────────────── -->
+      <div class="form-group">
+        <label class="form-label">Recipe Photo</label>
+
+        <!-- Mode tabs -->
+        <div class="img-picker-tabs" role="tablist">
+          <button type="button" class="img-tab active" id="tab-upload" role="tab"
+                  onclick="imgPickerTab('upload')" aria-selected="true">📁 Upload</button>
+          <button type="button" class="img-tab" id="tab-camera" role="tab"
+                  onclick="imgPickerTab('camera')" aria-selected="false">📷 Camera</button>
+          <button type="button" class="img-tab" id="tab-url" role="tab"
+                  onclick="imgPickerTab('url')" aria-selected="false">🔗 URL</button>
         </div>
-        <div class="form-group">
-          <label class="form-label" for="cr-image">Image URL</label>
-          <input type="url" id="cr-image" name="image_url" class="form-input" placeholder="https://…">
+
+        <!-- Upload panel -->
+        <div class="img-panel" id="panel-upload">
+          <label class="img-drop-zone" id="dropZone" for="cr-image-file">
+            <input type="file" id="cr-image-file" name="recipe_image"
+                   accept="image/jpeg,image/png,image/webp,image/gif"
+                   onchange="previewFile(this)" style="display:none">
+            <span class="drop-icon">🖼️</span>
+            <span class="drop-label">Click to browse or drag & drop</span>
+            <span class="drop-hint">JPG, PNG, WebP, GIF · max 8 MB</span>
+          </label>
+        </div>
+
+        <!-- Camera panel -->
+        <div class="img-panel" id="panel-camera" style="display:none">
+          <div class="camera-viewport">
+            <video id="cameraFeed" autoplay playsinline muted></video>
+            <canvas id="captureCanvas" style="display:none"></canvas>
+            <div class="camera-controls">
+              <button type="button" class="btn btn-primary" onclick="snapPhoto()">📸 Take Photo</button>
+              <button type="button" class="btn btn-outline" onclick="stopCamera()" id="stopCameraBtn">Stop Camera</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- URL panel -->
+        <div class="img-panel" id="panel-url" style="display:none">
+          <input type="url" id="cr-image-url" class="form-input"
+                 placeholder="https://example.com/my-dish.jpg"
+                 oninput="previewUrl(this.value)">
+        </div>
+
+        <!-- Hidden field that actually gets submitted -->
+        <input type="hidden" id="cr-image-hidden" name="image_url" value="">
+
+        <!-- Live preview -->
+        <div class="img-preview-wrap" id="imgPreviewWrap" style="display:none">
+          <img id="imgPreview" src="" alt="Recipe photo preview">
+          <button type="button" class="img-preview-clear" onclick="clearImagePicker()" aria-label="Remove image">✕</button>
         </div>
       </div>
 

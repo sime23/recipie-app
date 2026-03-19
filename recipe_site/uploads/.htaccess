@@ -1,0 +1,6 @@
+# Prevent uploaded files from being executed as PHP scripts
+<FilesMatch "\.(php|php3|php4|php5|phtml|pl|py|jsp|asp|sh|cgi)$">
+  deny from all
+</FilesMatch>
+Options -ExecCGI
+AddType text/plain .php .php3 .php4 .php5 .phtml

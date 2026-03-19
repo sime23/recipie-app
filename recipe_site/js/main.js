@@ -369,3 +369,169 @@ window.toggleFav = function(btn) {
       btn.style.opacity = '';
     });
 };
+
+
+/* ════════════════════════════════════════════════════════════
+   10. IMAGE PICKER LOIGC (Profile Modal)
+   Handles tabs (Upload, Camera, URL), drag & drop, and
+   webcam picture capture for the recipe creation form.
+   ════════════════════════════════════════════════════════════ */
+
+// -- Tab Switching --
+window.imgPickerTab = function(mode) {
+  // Update active tab button styling
+  document.querySelectorAll('.img-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tab-${mode}`).classList.add('active');
+
+  // Show only selected panel
+  document.querySelectorAll('.img-panel').forEach(p => p.style.display = 'none');
+  document.getElementById(`panel-${mode}`).style.display = 'block';
+
+  // Stop camera if navigating away from camera tab
+  if (mode !== 'camera') {
+    window.stopCamera();
+  } else {
+    window.startCamera();
+  }
+};
+
+// State variables for camera
+let camStream = null;
+
+// -- Camera Logic --
+window.startCamera = async function() {
+  const video = document.getElementById('cameraFeed');
+  if (!video) return;
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    video.srcObject = camStream;
+  } catch (err) {
+    console.error("Camera access denied or unavailable:", err);
+    alert("Could not access camera. Please check permissions or switch to Upload.");
+  }
+};
+
+window.stopCamera = function() {
+  if (camStream) {
+    camStream.getTracks().forEach(track => track.stop());
+    camStream = null;
+  }
+  const video = document.getElementById('cameraFeed');
+  if (video) video.srcObject = null;
+};
+
+window.snapPhoto = function() {
+  const video = document.getElementById('cameraFeed');
+  const canvas = document.getElementById('captureCanvas');
+  const fileInput = document.getElementById('cr-image-file');
+  
+  if (!video || !video.srcObject) return;
+
+  // Set canvas dimensions to match video stream
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  // Convert canvas to Data URL (WebP for better compression, fallback to JPEG if unsupported)
+  const dataUrl = canvas.toDataURL('image/webp', 0.85);
+  
+  // Create a proper File object matching what an <input type="file"> would produce
+  // so the PHP backend sees it as $_FILES['recipe_image']
+  canvas.toBlob(blob => {
+    if(!blob) return;
+    const file = new File([blob], `camera_capture_${Date.now()}.webp`, { type: 'image/webp' });
+    
+    // Use DataTransfer object to assign the file to the <input type="file">
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    fileInput.files = dataTransfer.files;
+
+    // Show preview & stop camera
+    window.setPreviewImage(dataUrl);
+    window.stopCamera();
+    
+    // Clear URL field just in case
+    document.getElementById('cr-image-url').value = '';
+    document.getElementById('cr-image-hidden').value = '';
+  }, 'image/webp', 0.85);
+};
+
+
+// -- Upload & Drag-and-Drop Logic --
+window.previewFile = function(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      window.setPreviewImage(e.target.result);
+      // Clear URL fields since we are using a file
+      document.getElementById('cr-image-url').value = '';
+      document.getElementById('cr-image-hidden').value = '';
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+};
+
+window.previewUrl = function(url) {
+  const trimmedUrl = url.trim();
+  document.getElementById('cr-image-hidden').value = trimmedUrl;
+  
+  if (trimmedUrl) {
+    window.setPreviewImage(trimmedUrl);
+    // Clear file input if URL is used
+    document.getElementById('cr-image-file').value = '';
+  } else {
+    window.clearImagePicker();
+  }
+};
+
+window.setPreviewImage = function(src) {
+  const previewWrap = document.getElementById('imgPreviewWrap');
+  const previewImg = document.getElementById('imgPreview');
+  if (previewWrap && previewImg) {
+    previewImg.src = src;
+    previewWrap.style.display = 'block';
+  }
+};
+
+window.clearImagePicker = function() {
+  document.getElementById('imgPreviewWrap').style.display = 'none';
+  document.getElementById('imgPreview').src = '';
+  document.getElementById('cr-image-file').value = '';
+  document.getElementById('cr-image-url').value = '';
+  document.getElementById('cr-image-hidden').value = '';
+};
+
+// Setup Drag & Drop listeners on DOM load
+document.addEventListener('DOMContentLoaded', () => {
+  const dropZone = document.getElementById('dropZone');
+  if (!dropZone) return;
+
+  const fileInput = document.getElementById('cr-image-file');
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, preventDefaults, false);
+  });
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-over'), false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-over'), false);
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    if (files.length) {
+      fileInput.files = files;
+      window.previewFile(fileInput);
+    }
+  });
+});
