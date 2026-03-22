@@ -21,7 +21,7 @@
 // secrets manager — never hard-code in version-controlled files.
 define('DB_HOST', 'localhost');
 define('DB_PORT', '3306');
-define('DB_NAME', 'recipie');
+define('DB_NAME', 'recipie_db');
 define('DB_USER', 'root');          // ← change to your DB user
 define('DB_PASS', '');              // ← change to your DB password
 define('DB_CHAR', 'utf8mb4');       // Full Unicode (emoji-safe)
