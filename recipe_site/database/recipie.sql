@@ -315,7 +315,7 @@ VALUES
  1);
 
 -- Tags seed data
-INSERT INTO tags (name, slug) VALUES
+INSERT IGNORE INTO tags (name, slug) VALUES
   ('Quick', 'quick'), ('Vegetarian', 'vegetarian'), ('Gluten-Free', 'gluten-free'),
   ('Spicy', 'spicy'), ('Comfort Food', 'comfort-food'), ('Date Night', 'date-night');
 
