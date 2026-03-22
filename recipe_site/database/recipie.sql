@@ -66,6 +66,8 @@ CREATE TABLE IF NOT EXISTS recipes (
   cook_time       SMALLINT UNSIGNED NOT NULL DEFAULT 0, -- Minutes
   servings        TINYINT UNSIGNED  NOT NULL DEFAULT 4,
   difficulty      ENUM('easy','medium','hard') NOT NULL DEFAULT 'medium',
+  average_rating  DECIMAL(3,2)    NOT NULL DEFAULT 0.00,
+  rating_count    INT UNSIGNED    NOT NULL DEFAULT 0,
   image_url       VARCHAR(500)    NOT NULL,
   featured        TINYINT(1)      NOT NULL DEFAULT 0,  -- 1 = show on homepage hero
   created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -112,7 +114,7 @@ CREATE TABLE IF NOT EXISTS recipe_tags (
 -- ============================================================
 -- SEED DATA — Categories
 -- ============================================================
-INSERT INTO categories (name, slug, icon) VALUES
+INSERT IGNORE INTO categories (name, slug, icon) VALUES
   ('Breakfast',  'breakfast',  '🍳'),
   ('Lunch',      'lunch',      '🥗'),
   ('Dinner',     'dinner',     '🍝'),
@@ -124,7 +126,7 @@ INSERT INTO categories (name, slug, icon) VALUES
 -- SEED DATA — Demo Admin User  (password: "admin1234")
 -- Hash generated with: password_hash('admin1234', PASSWORD_BCRYPT)
 -- ============================================================
-INSERT INTO users (username, email, password_hash, role) VALUES
+INSERT IGNORE INTO users (username, email, password_hash, role) VALUES
   ('chef_admin', 'admin@recipehub.com',
    '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- bcrypt placeholder
    'admin');
@@ -132,7 +134,7 @@ INSERT INTO users (username, email, password_hash, role) VALUES
 -- ============================================================
 -- SEED DATA — Sample Recipes
 -- ============================================================
-INSERT INTO recipes
+INSERT IGNORE INTO recipes
   (category_id, author_id, title, slug, description,
    ingredients, instructions,
    prep_time, cook_time, servings, difficulty, image_url, featured)
@@ -333,5 +335,23 @@ CREATE TABLE IF NOT EXISTS user_favorites (
   CONSTRAINT fk_fav_user
     FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE,
   CONSTRAINT fk_fav_recipe
+    FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABLE: user_ratings
+-- Stores 0-5 star ratings from users for recipes.
+-- ============================================================
+CREATE TABLE IF NOT EXISTS user_ratings (
+  user_id    INT UNSIGNED NOT NULL,
+  recipe_id  INT UNSIGNED NOT NULL,
+  rating     TINYINT UNSIGNED NOT NULL CHECK (rating >= 0 AND rating <= 5),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  
+  PRIMARY KEY (user_id, recipe_id),
+  
+  CONSTRAINT fk_ur_user 
+    FOREIGN KEY (user_id)   REFERENCES users(id)   ON DELETE CASCADE,
+  CONSTRAINT fk_ur_recipe 
     FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
